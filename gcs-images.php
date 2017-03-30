@@ -48,7 +48,7 @@ function settings_api_init() {
 
 	add_settings_field(
 	 'wp_gcs_images_service_quality',
-	 'GCS Image Service Qaulity',
+	 'GCS Image Service Quality',
 	 __NAMESPACE__.'\\setting_quality_callback_function',
 	 'media',
 	 'wp_gcs_images'
@@ -160,17 +160,6 @@ function get_image_service_url($file){
 }
 
 function resize_serving_url($url, $p) {
-	$defaults = array(
-		'width'=>'',
-		'height'=>'',
-		'crop'=>'',
-		'quality'=>'', //1-100
-		'stretch'=>false
-	);
-
-	$p = array_merge($defaults, $p);
-
-	$params = array();
 
 	$defaults = array(
 		'width'=>'',
