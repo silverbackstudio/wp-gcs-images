@@ -107,7 +107,7 @@ function get_intermediate_url( $data, $id, $size ) {
 }
 
 function is_direct_api_access_available(){
-	return class_exists(CloudStorageTools::classname);
+	return class_exists('\google\appengine\api\cloud_storage\CloudStorageTools');
 }
 
 function get_attachment_serving_url($id){
