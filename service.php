@@ -1,14 +1,20 @@
 <?php
-
 use google\appengine\api\cloud_storage\CloudStorageTools;
 
-$bucket = getenv('GCS_BUCKET') ;
+$uri = ltrim($_SERVER['REQUEST_URI'], '/');
 
-$path = ltrim($_SERVER['REQUEST_URI'], '/') ;
-
-if(empty($path)) {
+if(empty($uri)) {
     exit;
 }
+
+$matches = array();
+
+if(!preg_match('@([^/]+)/(.+)$@', $uri, $matches)){
+    exit;
+};
+
+$bucket = $matches[1];
+$path = $matches[2];
 
 $filepath = CloudStorageTools::getFilename($bucket, $path);
 $cache_key = 'imgsrv_'.md5($filepath);
