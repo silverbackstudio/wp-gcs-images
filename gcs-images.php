@@ -34,15 +34,29 @@ function settings_api_init() {
 		'media'
 	);
 
+	if(!is_direct_api_access_available()){
 	 add_settings_field(
 		'wp_gcs_images_service_url',
-		'GCS Service URL',
-		__NAMESPACE__.'\\setting_callback_function',
+		'GCS Image Service URL',
+		__NAMESPACE__.'\\setting_url_callback_function',
 		'media',
 		'wp_gcs_images'
 	);
 
 	 register_setting( 'media', 'wp_gcs_images_service_url' );
+ 	}
+
+	add_settings_field(
+	 'wp_gcs_images_service_quality',
+	 'GCS Image Service Qaulity',
+	 __NAMESPACE__.'\\setting_quality_callback_function',
+	 'media',
+	 'wp_gcs_images'
+ );
+
+	register_setting( 'media', 'wp_gcs_images_service_url' );
+	register_setting( 'media', 'wp_gcs_images_service_quality' );
+
 }
 
 
@@ -50,8 +64,12 @@ function setting_section_callback_function() {
 	echo '<p>Integrates WP with Google Cloud Storage</p>';
 }
 
-function setting_callback_function() {
+function setting_url_callback_function() {
  	echo '<input name="wp_gcs_images_service_url" id="wp_gcs_images_service_url" type="text" value="'.esc_attr(get_option( 'wp_gcs_images_service_url' )).'" class="code" placeholder="image-dot-projectname.appspot.com" /> Eg. [service]-dot-[project].appspot.com';
+}
+
+function setting_quality_callback_function() {
+ 	echo '<input name="wp_gcs_images_service_quality" id="wp_gcs_images_service_quality" type="number" min="1" max="100" value="'.esc_attr( get_option( 'wp_gcs_images_service_quality', 90) ).'" class="code" placeholder="" />';
 }
 
 function get_intermediate_url( $data, $id, $size ) {
@@ -88,6 +106,10 @@ function get_intermediate_url( $data, $id, $size ) {
     return [$url, $width, $height, $intermediate];
 }
 
+function is_direct_api_access_available(){
+	return class_exists(CloudStorageTools::classname);
+}
+
 function get_attachment_serving_url($id){
 
 	$file = get_attached_file( $id );
@@ -103,7 +125,9 @@ function get_attachment_serving_url($id){
 
 	if ( empty( $baseurl ) && get_option('wp_gcs_images_service_url') ) {
 
-		if(class_exists(CloudStorageTools::classname)){
+		$bucket = '';	$gs_object = '';
+
+		if(is_direct_api_access_available() && CloudStorageTools::parseFilename($file, $bucket, $gs_object)){
 			$baseurl = CloudStorageTools::getImageServingUrl($file, ['secure_url' => $secure_urls]);
 		} elseif ( get_option('wp_gcs_images_service_url') ) {
 			$response_raw = wp_remote_request( get_image_service_url($file), array('method'=>'GET') );
@@ -112,10 +136,8 @@ function get_attachment_serving_url($id){
 		} else {
 			$baseurl = false;
 		}
-
 		update_post_meta( $id, '_appengine_imageurl', $baseurl );
 		update_post_meta( $id, '_appengine_imageurl_file', $file );
-
 	}
 
 	if ($secure_urls) {
@@ -150,16 +172,39 @@ function resize_serving_url($url, $p) {
 
 	$params = array();
 
-	if($p['width']){
+	$defaults = array(
+		'width'=>'',
+		'height'=>'',
+		'crop'=>'',
+		'quality'=> get_option('wp_gcs_images_service_quality'), //1-100
+		'stretch'=>false
+	);
+
+	$p = array_merge($defaults, $p);
+
+	$params = array();
+
+	if($p['width'] && $p['height']){
 		$params[]= 'w'.$p['width'];
+		$params[]= 'h'.$p['height'];
 	} elseif($p['height']) {
 		$params[]= 'h'.$p['height'];
-	} else {
+	} elseif($p['width']) {
+		$params[]= 'w'.$p['width'];
+	}	else {
 		$params[] = 's0';
 	}
 
 	if($p['crop']){
-		$params[] = 'c';
+		$params[] = 'p';
+	}
+
+	if($p['quality']){
+	$params[] = 'l'.$p['quality'];
+	}
+
+	if(!$p['stretch']){
+	$params[] = 'nu';
 	}
 
 	return $url.'='.join('-', $params);
